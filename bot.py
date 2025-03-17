@@ -100,7 +100,7 @@ async def ask_payment(callback: types.CallbackQuery, state: FSMContext):
 # 🔄 Функция для отправки возражений при напоминании
 async def send_payment_reminders(user_id, state: FSMContext):
     for i in range(10):  # 10 раз отправит напоминание (20 минут)
-        await asyncio.sleep(120)  # Ждать 2 минуты
+        await asyncio.sleep(30)  # Ждать 2 минуты
         current_state = await state.get_state()
         if current_state != OrderState.waiting_for_payment:
             break  # Если клиент оплатил, прекращаем напоминания
