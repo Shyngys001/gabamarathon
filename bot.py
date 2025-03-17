@@ -10,7 +10,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 # 🔐 Конфигурация бота
 TOKEN = "7859736492:AAGhN-jAfsjYnkyDIjf2CHdcRrztwl9jIZM"
-ADMIN_ID = "306728906"
+ADMIN_ID = "1050963411"
 PAYMENT_URL = "https://pay.kaspi.kz/pay/iyzblpte"
 VIDEO_URL = "https://shyngys001.github.io/gabitmarathon/"
 SHEET_API_URL = "https://script.google.com/macros/s/AKfycbw5JdJPol9ZIwasv5fL3GLEK231Rl9-KQli35vrRX0vAZh_7jZceD9zwXPjpFP9X4tDvw/exec"
