@@ -6,11 +6,13 @@ from aiogram.filters import Command
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+import aiohttp
 
 TOKEN = "7859736492:AAGhN-jAfsjYnkyDIjf2CHdcRrztwl9jIZM"
 ADMIN_ID = "306728906"
 PAYMENT_URL = "https://pay.kaspi.kz/pay/iyzblpte"
 VIDEO_URL = "https://shyngys001.github.io/gabitmarathon/"
+SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxtYqZWRS6NfFmxbvS3RgCesBiLtTrPqQDTmTsexTI39Hm_snqQBtogf_YPU2elHAMKHA/exec"
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
@@ -144,6 +146,9 @@ async def ask_phone(message: types.Message, state: FSMContext):
     await message.answer("📞 Телефон нөміріңіз?")
     await state.set_state(OrderState.waiting_for_phone)
 
+    
+
+
 # ✅ Обработка номера телефона и отправка админу
 @dp.message(OrderState.waiting_for_phone)
 async def save_client_data(message: types.Message, state: FSMContext):
@@ -159,7 +164,9 @@ async def save_client_data(message: types.Message, state: FSMContext):
     await bot.send_message(ADMIN_ID, admin_text)
     await message.answer("🎉 Төлем қабылданды! Ұйымдастырушылар сізді топқа қосады.")
     await state.clear()
-
+     # Отправка данных в Google Sheets
+    async with aiohttp.ClientSession() as session:
+        await session.post(SHEET_API_URL, json={"name": name, "phone": phone})
 # 🚀 Запуск бота
 async def main():
     await dp.start_polling(bot)
