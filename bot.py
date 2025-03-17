@@ -8,11 +8,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 TOKEN = "7859736492:AAGhN-jAfsjYnkyDIjf2CHdcRrztwl9jIZM"
-ADMIN_ID = "1050963411"
+ADMIN_ID = "306728906"
 PAYMENT_URL = "https://pay.kaspi.kz/pay/iyzblpte"
 VIDEO_URL = "https://shyngys001.github.io/gabitmarathon/"
 
-# Создание бота и диспетчера с передачей parse_mode
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 
@@ -20,12 +19,38 @@ logging.basicConfig(level=logging.INFO)
 
 # 🔄 FSM Состояния
 class OrderState(StatesGroup):
-    waiting_for_name = State()
-    waiting_for_phone = State()
     waiting_for_payment = State()
     waiting_for_receipt = State()
+    waiting_for_name = State()
+    waiting_for_phone = State()
 
-# 📢 Стартовое сообщение с кнопками
+# 🔔 Список возражений
+OBJECTION_MESSAGES = [
+    "❗ <b>Мен тырысып көрдім, бірақ маған ештеңе көмектеспейді</b>\n\n"
+    "➡ Бұрынғы әдістеріңіз нәтиже бермесе, бұл дұрыс жолмен арықтамағаныңызды білдіреді. "
+    "Менің әдістемем басқа:\n"
+    "✔️ Бұл диета емес, аш қалу емес, қатаң шектеу емес.\n"
+    "✔️ Сіз денеңіздің табиғи арықтау процесін қосасыз – ол өздігінен майларды кетіре бастайды.\n"
+    "✔️ Мыңдаған адамға көмектескен жүйе сізге де жұмыс істейді!",
+
+    "❗ <b>Менде мотивация жетіспейді</b>\n\n"
+    "➡ Сондықтан сізге марафон керек! Жалғыз бастасаңыз, мотивацияңыз тез өшіп қалады. "
+    "Ал марафонда мен сізді күн сайын бағыттаймын, мотивация беремін. Сіз жалғыз емессіз!",
+
+    "❗ <b>Маған уақыт тапшы, жұмысым көп</b>\n\n"
+    "➡ Марафон уақыт алмайды! Күнделікті тапсырмалар оңай, оларды өз өміріңізге бейімдеп жасайсыз. "
+    "Қатаң режим жоқ!",
+
+    "❗ <b>1000 теңгеге не үйренем? Тегін болса қатысар едім</b>\n\n"
+    "➡ 1000 тг – бір шыны кофе бағасы. Ал марафон сізге денсаулық, әдемі дене, жеңілдік сезімін береді. "
+    "Тегін нәрсені адам қадірлемейді, ал сіз осы 1000 тг арқылы өзіңізге үлкен өзгеріс жасағыңыз келетінін дәлелдейсіз.",
+
+    "❗ <b>Спортсыз арықтау мүмкін емес</b>\n\n"
+    "➡ Иә, спорт пайдалы, бірақ арықтаудың 80%-ы дұрыс тамақтану мен метаболизмді реттеуге байланысты. "
+    "Спортсыз-ақ май кетеді!"
+]
+
+# 📢 Стартовое сообщение
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message, state: FSMContext):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -46,27 +71,10 @@ async def send_welcome(message: types.Message, state: FSMContext):
 Тегін видеоны көріп, бүгіннен бастап арықтауды баста!"""
     
     await message.answer(text, reply_markup=keyboard)
-    await state.clear()
 
 # 📌 Обработка "✅ Видеоны көрдім"
 @dp.callback_query(lambda c: c.data == "watched_video")
-async def ask_name(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("📌 Атыңыз кім?")
-    await state.set_state(OrderState.waiting_for_name)
-    await callback.answer()
-
-# 📞 Получение имени и запрос номера телефона
-@dp.message(OrderState.waiting_for_name)
-async def ask_phone(message: types.Message, state: FSMContext):
-    await state.update_data(name=message.text)
-    await message.answer("📞 Телефон нөміріңіз?")
-    await state.set_state(OrderState.waiting_for_phone)
-
-# 💳 Запрос на оплату
-@dp.message(OrderState.waiting_for_phone)
-async def ask_payment(message: types.Message, state: FSMContext):
-    await state.update_data(phone=message.text)
-
+async def ask_payment(callback: types.CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="💳 Төлеу", url=PAYMENT_URL)],
         [InlineKeyboardButton(text="✅ Төледім", callback_data="paid")]
@@ -84,34 +92,72 @@ async def ask_payment(message: types.Message, state: FSMContext):
 
 <b>Орныңды ал – бар болғаны 3000 тг!</b>"""
     
-    await message.answer(text, reply_markup=keyboard)
+    await callback.message.answer(text, reply_markup=keyboard)
     await state.set_state(OrderState.waiting_for_payment)
+    asyncio.create_task(send_payment_reminders(callback.from_user.id, state))  # Запуск напоминаний
+    await callback.answer()
+
+# 🔄 Функция для отправки возражений при напоминании
+async def send_payment_reminders(user_id, state: FSMContext):
+    for i in range(10):  # 10 раз отправит напоминание (20 минут)
+        await asyncio.sleep(120)  # Ждать 2 минуты
+        current_state = await state.get_state()
+        if current_state != OrderState.waiting_for_payment:
+            break  # Если клиент оплатил, прекращаем напоминания
+
+        objection_text = OBJECTION_MESSAGES[i % len(OBJECTION_MESSAGES)]  # Выбираем возражение по очереди
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Төлеу", url=PAYMENT_URL)],
+            [InlineKeyboardButton(text="✅ Төледім", callback_data="paid")]
+        ])
+        await bot.send_message(user_id, objection_text, reply_markup=keyboard)
 
 # ✅ Обработка "Төледім"
 @dp.callback_query(lambda c: c.data == "paid")
 async def confirm_payment(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("📌 Чек жіберіңіз.")
+    await callback.message.answer("📌 Чек жіберіңіз (фото немесе PDF).")
     await state.set_state(OrderState.waiting_for_receipt)
     await callback.answer()
 
-# 📩 Сохранение данных клиента
+# 📩 Запрос чека, затем запроса имени
 @dp.message(OrderState.waiting_for_receipt)
+async def ask_name_after_receipt(message: types.Message, state: FSMContext):
+    # Сохранение чека
+    if message.photo:
+        file_id = message.photo[-1].file_id
+        await bot.send_photo(ADMIN_ID, file_id, caption="💳 Жаңа чек келді!")
+    elif message.document:
+        file_id = message.document.file_id
+        await bot.send_document(ADMIN_ID, file_id, caption="💳 Жаңа чек келді!")
+    else:
+        await bot.send_message(ADMIN_ID, f"💳 Жаңа чек келді!\n{message.text}")
+
+    # Переход к запросу имени
+    await message.answer("📌 Атыңыз кім?")
+    await state.set_state(OrderState.waiting_for_name)
+
+# 📞 Запрос номера телефона после имени
+@dp.message(OrderState.waiting_for_name)
+async def ask_phone(message: types.Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await message.answer("📞 Телефон нөміріңіз?")
+    await state.set_state(OrderState.waiting_for_phone)
+
+# ✅ Обработка номера телефона и отправка админу
+@dp.message(OrderState.waiting_for_phone)
 async def save_client_data(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     name = user_data.get("name", "Анықталмаған")
-    phone = user_data.get("phone", "Анықталмаған")
-    receipt = message.text
+    phone = message.text
 
-    # Отправка данных админу
     admin_text = f"""🔔 <b>Жаңа төлем!</b>
 
 👤 Аты: {name}
-📞 Телефон: {phone}
-💳 Чек: {receipt}"""
+📞 Телефон: {phone}"""
     
     await bot.send_message(ADMIN_ID, admin_text)
     await message.answer("🎉 Төлем қабылданды! Ұйымдастырушылар сізді топқа қосады.")
-
     await state.clear()
 
 # 🚀 Запуск бота
