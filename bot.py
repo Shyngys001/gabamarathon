@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 TOKEN = "7859736492:AAGhN-jAfsjYnkyDIjf2CHdcRrztwl9jIZM"
-ADMIN_ID = "1050963411"
+ADMIN_ID = "306728906"
 PAYMENT_URL = "https://pay.kaspi.kz/pay/iyzblpte"
 VIDEO_URL = "https://shyngys001.github.io/gabitmarathon/"
 
